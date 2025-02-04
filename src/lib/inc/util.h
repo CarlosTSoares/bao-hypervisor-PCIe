@@ -70,22 +70,24 @@ static inline bool range_in_range(unsigned long base1, unsigned long size1, unsi
 }
 
 /* WARNING! does not check for overflow! */
-#define in_range(_addr, _base, _size)   range_in_range(_addr, 0, _base, _size)
+#define in_range(_addr, _base, _size)    range_in_range(_addr, 0, _base, _size)
 
 /**
  * Check if a given macro was defined. Note it only works wither if the macro is undefined or
  * defined to the value 1. If the macro is defined with any other value it will fail recognizing
  * its defined.
  */
-#define DEFINED(MACRO)                  _DEFINED(MACRO)
-#define _DEFINED_1                      0,
-#define _DEFINED(VALUE)                 __DEFINED(_DEFINED_##VALUE)
-#define __DEFINED(VALUE)                ___DEFINED(VALUE true, false, dummy)
-#define ___DEFINED(IGNORE, RESULT, ...) (RESULT)
+#define DEFINED(MACRO)                   _DEFINED(MACRO)
+#define _DEFINED_1                       0,
+#define _DEFINED(VALUE)                  __DEFINED(_DEFINED_##VALUE)
+#define __DEFINED(VALUE)                 ___DEFINED(VALUE true, false, dummy)
+#define ___DEFINED(IGNORE, RESULT, ...)  (RESULT)
 
-#define EMPTY_STRUCT_FIELDS             uint8_t dummy_;
+#define EMPTY_STRUCT_FIELDS              uint8_t dummy_;
 
-#define UNUSED_ARG(VAR)                 ((void)(VAR))
+#define UNUSED_ARG(VAR)                  ((void)(VAR))
+
+#define CONTAINER_OF(STRUCT, FIELD, PTR) ((STRUCT*)(((uintptr_t)(PTR)) - offsetof(STRUCT, FIELD)))
 
 #endif
 

@@ -40,7 +40,7 @@ static inline struct mpe* mem_vmpu_get_entry(struct addr_space* as, mpid_t mpid)
     return NULL;
 }
 
-static int vmpu_node_cmp(node_t* _n1, node_t* _n2)
+static int vmpu_node_cmp(void* cookie, node_t* _n1, node_t* _n2)
 {
     struct mpe* n1 = (struct mpe*)_n1;
     struct mpe* n2 = (struct mpe*)_n2;
@@ -59,6 +59,8 @@ static int vmpu_node_cmp(node_t* _n1, node_t* _n2)
     }
 }
 
+static const struct node_cmp vmpu_list_node_cmp = { .cmp = vmpu_node_cmp };
+
 static void mem_vmpu_set_entry(struct addr_space* as, mpid_t mpid, struct mp_region* mpr,
     bool locked)
 {
@@ -72,7 +74,7 @@ static void mem_vmpu_set_entry(struct addr_space* as, mpid_t mpid, struct mp_reg
     mpe->mpid = mpid;
     mpe->lock = locked;
 
-    list_insert_ordered(&as->vmpu.ordered_list, (node_t*)&as->vmpu.node[mpid], vmpu_node_cmp);
+    list_insert_ordered(&as->vmpu.ordered_list, (node_t*)&as->vmpu.node[mpid], &vmpu_list_node_cmp);
 }
 
 static void mem_vmpu_clear_entry(struct addr_space* as, mpid_t mpid)
