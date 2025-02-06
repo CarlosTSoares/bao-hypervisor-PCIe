@@ -117,8 +117,6 @@ void gic_handle()
         if (res == HANDLED_BY_HYP) {
             gicc_dir(ack);      //gic desactivate interrupt
         }
-    } else {
-        //console_printk("[BAO] Interrupt received wiht ID out of range - %d\n",id);
     }
 }
 

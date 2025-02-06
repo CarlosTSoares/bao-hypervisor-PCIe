@@ -24,6 +24,5 @@ void gicr_set_vpendbaser(cpuid_t gicr_id, uint64_t phy_addr){
                                 GICR_PROPBASER_RaWaWb |
                                 GICR_VPENDBASER_VAL_BIT | GICR_VPENDBASER_IDAI_BIT;
         spin_unlock(&gicr_lock);
-        console_printk("[BAO-GICv3] VPENDBASER assigned\n");
     }
 }

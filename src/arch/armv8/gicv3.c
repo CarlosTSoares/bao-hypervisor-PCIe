@@ -304,7 +304,7 @@ void gic_set_enable(irqid_t int_id, bool en)
     }
 }
 
-/* Map ITS to Bao*/
+/* Maps ITS programming interface in Bao address space*/
 void gits_map_mmio()
 {
     gits = (void*)mem_alloc_map_dev(&cpu()->as, SEC_HYP_GLOBAL, INVALID_VA,
@@ -357,19 +357,10 @@ void gits_set_baser_val(size_t index){
     spin_unlock(&gits_lock);
 }
 
-/* This 
-*
-*
-*
-*/
-// void gits_cids_bits(struct gits_hw *gits){
-//     return (gits->TYPER & GITS_TYPER_CIL_BIT)? ((gits->TYPER & GITS_TYPER_CID_MSK) >> GITS_TYPER_CID_OFF) : ITS_COLL_BITS_MAX;
-// }
 
 static inline void gic_alloc_cmd_queue(){
     paddr_t cmd_queue_pa;
 
-    //Alocc the cmd queue 64KB-aligned
     its_cmd_queue = mem_alloc_page(ITS_CMD_QUEUE_N_PAGE,SEC_HYP_GLOBAL,true);
 
     if (its_cmd_queue == NULL)
@@ -377,15 +368,13 @@ static inline void gic_alloc_cmd_queue(){
 
     mem_translate(&cpu()->as,(vaddr_t)its_cmd_queue,&cmd_queue_pa);
 
-    console_printk("[BAO-GICv3] Value of vcmdq page is 0x%lx and phy is 0x%lx\n",its_cmd_queue,cmd_queue_pa);
-
     uint64_t cbaser = cmd_queue_pa  |
                     GITS_CBASER_RaWaWb  |
                     GITS_CBASER_InnerShareable |
                     (ITS_CMD_QUEUE_N_PAGE - 1) |
                     GITS_CBASER_VALID;
     
-    gits_set_cbaser(cbaser);    //I cannot set cbaser if the its is not available
+    gits_set_cbaser(cbaser);
 
 
 }
@@ -393,6 +382,7 @@ static inline void gic_alloc_cmd_queue(){
 static inline void gic_alloc_its_tables(){
 
     for (size_t index = 0; index < GIC_MAX_TTD; index++) {
+        
         //TODO -  Verify if flat tables are supported and manage Indirect bit
         if(bit64_extract(gits->BASER[index], GITS_BASER_TYPE_OFF, GITS_BASER_TYPE_LEN) == GITS_BASER_COLLT_TYPE ||
            bit64_extract(gits->BASER[index], GITS_BASER_TYPE_OFF, GITS_BASER_TYPE_LEN) == GITS_BASER_DEVT_TYPE )
@@ -403,7 +393,6 @@ static inline void gic_alloc_its_tables(){
 
             gits_set_baser(pages.base,index);
             gits_set_baser_val(index);
-            console_printk("[BAO-GICv3] pBASER assigned with value 0x%lx\n",gits->BASER[index]);
         }
     }
 }
@@ -414,16 +403,14 @@ void gic_alloc_vpe_table(){
 
     struct ppages pages = { .num_pages = 0 };
     pages = mem_alloc_ppages(cpu()->as.colors,16,true);
-    console_printk("[BAO-GICv3] vPET_phy table allocated is 0x%lx\n",pages.base);
 
     for (size_t index = 0; index < GIC_MAX_TTD; index++) {
+        
         //TODO -  Verify if flat tables are supported and manage Indirect bit
         if(bit64_extract(gits->BASER[index], GITS_BASER_TYPE_OFF, GITS_BASER_TYPE_LEN) == GITS_BASER_VPET_TYPE)
         {
-            console_printk("[BAO-GICV3] VPE table found is 0x%lx\n",gits->BASER[index]);
             gits_set_baser(pages.base,index);
             gits_set_baser_val(index);
-            //continue;
         }
     }
 }
@@ -432,10 +419,9 @@ void its_init()
 {
 
     gic_alloc_cmd_queue();
-    //gic_alloc_coll_table(); //Only required by GICv3
 
     #if (GIC_VERSION == GICV3)
-        gic_alloc_its_tables(); //Only required by GICv3
+        gic_alloc_its_tables();
     #elif (GIC_VERSION == GICV4)
         if(GIC_HAS_VLPI(gits)){
             gic_alloc_vpe_table();

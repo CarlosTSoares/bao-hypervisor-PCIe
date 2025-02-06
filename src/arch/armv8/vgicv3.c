@@ -20,13 +20,8 @@
 
 #define GICR_REG_OFF(REG)   (offsetof(struct gicr_hw, REG) & 0x1ffff)
 
-//#if (GIC_VERSION == GICV3)
-    #define GICR_REG_MASK(ADDR) ((ADDR) & 0x1ffff)
-// #elif (GIC_VERSION == GICV4)
-//     #define GICR_REG_MASK(ADDR) (((ADDR) & 0xffff) | ((ADDR & 0x30000)^0x20000))
-// #else
-//     #error "unknown GIV version " GIC_VERSION
-// #endif
+
+#define GICR_REG_MASK(ADDR) ((ADDR) & 0x1ffff)
 
 
 #define GICD_REG_MASK(ADDR) ((ADDR) & (GIC_VERSION == GICV2 ? 0xfffUL : 0xffffUL))
@@ -143,11 +138,6 @@ void vgicr_emul_pidr_access(struct emul_access* acc, struct vgic_reg_handler_inf
     bool gicr_access, vcpuid_t vgicr_id)
 {
     if (!acc->write) {
-        //unsigned long val = 0;
-        // cpuid_t pgicr_id = vm_translate_to_pcpuid(cpu()->vcpu->vm, vgicr_id);
-        // if (pgicr_id != INVALID_CPUID) {
-        //     //val = gicr[pgicr_id].ID[((acc->addr & 0xff) - 0xd0) / 4];
-        // }
         vcpu_writereg(cpu()->vcpu, acc->reg, 0x3b);
     }
 }
@@ -189,9 +179,6 @@ void vgicd_emul_router_access(struct emul_access* acc, struct vgic_reg_handler_i
 }
 
 /* Propbaser and Pendbaser emulation*/
-
-// bool proptable_emul_handler(struct emul_access* acc){
-
 
 void vgicr_emul_propbaser_access(struct emul_access* acc, struct vgic_reg_handler_info* handlers,
     bool gicr_access, vcpuid_t vgicr_id) 
@@ -481,13 +468,6 @@ void vgits_emul_cbaser_access(struct emul_access* acc, struct vgic_reg_handler_i
 
         vm->arch.vgits.vgits_cmdq.page_size = pages;
         vm->arch.vgits.CBASER = tmp_cbaser; //aren't there anu hardcoded info?
-
-        // console_printk("xxxxxxxxxxxxxxxxxxxxxxxxxxxxx\n");
-        // console_printk("\twrite to cbaser register\t\n");
-        // console_printk("Number of command pages:%d,vaddr:0x%lx\n",pages,cbaser_vaddr);
-        // console_printk("Tmpcbaser is 0x%lx\n",tmp_cbaser);
-        // console_printk("Value of basecmdq is 0x%lx\n",vm->arch.vgits.vgits_cmdq.base_cmdq);
-        // console_printk("xxxxxxxxxxxxxxxxxxxxxxxxxxxxx\n");
     }
 }
 
@@ -509,15 +489,6 @@ void its_build_mapc(struct its_cmd *curr_cmd,
     its_encode_target(curr_cmd,desc->its_mapc_cmd.target);
     its_encode_ic_id(curr_cmd,desc->its_mapc_cmd.ic_id);
     its_encode_valid(curr_cmd,desc->its_mapc_cmd.valid);
-
-    // console_printk("Valid is 0x%x\n",desc->its_mapc_cmd.valid);
-
-    // console_printk("[BAO-VGICV3] Value of command pointed by cwriter in cpu %d is\n"
-    //         "1- 0x%lx\n"
-    //         "2- 0x%lx\n"    
-    //         "3- 0x%lx\n"    
-    //         "4- 0x%lx\n\n",cpu()->id,curr_cmd->cmd[0],curr_cmd->cmd[1],curr_cmd->cmd[2],curr_cmd->cmd[3]);
-
 }
 
 void its_build_sync(struct its_cmd *curr_cmd,
@@ -641,12 +612,6 @@ void its_translate_cmd(struct its_cmd *dest_cmd,
     struct its_cmd_desc desc;
     struct vm* vm =  cpu()->vcpu->vm;
 
-    console_printk("\nCMD is 0x%x\n",GITS_CMD_MASK(src_cmd));
-    console_printk("cmd 0 is 0x%lx\n", src_cmd->cmd[0]);
-    console_printk("cmd 1 is 0x%lx\n", src_cmd->cmd[1]);
-    console_printk("cmd 2 is 0x%lx\n", src_cmd->cmd[2]);
-    console_printk("cmd 3 is 0x%lx\n\n", src_cmd->cmd[3]);
-
     switch (GITS_CMD_MASK(src_cmd)) {
     case ITS_MAPC_CMD:
         
@@ -661,38 +626,22 @@ void its_translate_cmd(struct its_cmd *dest_cmd,
         desc.its_mapc_cmd.valid = !!bit64_extract(src_cmd->cmd[2],63,1);
 
         its_build_mapc(dest_cmd,&desc);
+
         break;
     case ITS_SYNC_CMD:
+
         vrdbase = bit64_extract(src_cmd->cmd[2],ITS_CMD_RDBASE_OFF,ITS_CMD_RDBASE_LEN);
         pgicr_id = vm_translate_to_pcpuid(cpu()->vcpu->vm, vrdbase); //To-do: ERROR verification
 
         desc.its_sync_cmd.target = pgicr_id;
 
-        // /*Check tracker*/
-        // uint64_t gits_base = (uint64_t)gits;
-        // uint32_t *ptr = (uint32_t*)(gits_base+0xc004);
-        // console_printk("Value of trk ctlr is 0x%x",*ptr);
-        // ptr++;
-        // console_printk("Value of trkdidr is 0x%x",*ptr);
-        // ptr++;
-        // console_printk("Value of trkpidr is 0x%x",*ptr);
-        // ptr++;
-        // console_printk("Value of trkvidr is 0x%x",*ptr);
-
-        // its_build_sync(dest_cmd,&desc);
-        // console_printk("BAO-VGICV3: SYNC cmd received\n");
-
         its_build_sync(dest_cmd,&desc);
 
         break;
     case ITS_MAPD_CMD:
-        // paddr_t itt_paddr;
-        // vaddr_t *itt_vaddr = (vaddr_t *)bit64_extract(src_cmd->cmd[2],0,52);
-        // mem_guest_ipa_translate(itt_vaddr,&itt_paddr);
 
         struct ppages itt_pages = { .num_pages = 0 };
         itt_pages = mem_alloc_ppages(cpu()->as.colors,16,true); //To-do: Not to safe? Malicious VM can leak the physical mem
-        console_printk("[BAO-GICv3] Device table table allocated is 0x%lx\n",itt_pages.base);
 
         desc.its_mapd_cmd.device_id = bit64_extract(src_cmd->cmd[0],32,32); //for now no control
         desc.its_mapd_cmd.size = 15;
@@ -700,6 +649,7 @@ void its_translate_cmd(struct its_cmd *dest_cmd,
         desc.its_mapd_cmd.valid = !!bit64_extract(src_cmd->cmd[2],63,1);
 
         its_build_mapd(dest_cmd,&desc);
+
         break;
     case ITS_MAPTI_CMD:
 
@@ -716,6 +666,7 @@ void its_translate_cmd(struct its_cmd *dest_cmd,
 
         break;
     case ITS_MAPI_CMD:
+
         vic_id = bit64_extract(src_cmd->cmd[2],0,12);  //To-do: See implication of size
 
         desc.its_mapi_cmd.device_id = bit64_extract(src_cmd->cmd[0],32,32);
@@ -727,10 +678,12 @@ void its_translate_cmd(struct its_cmd *dest_cmd,
 
         break;
     case ITS_INVALL_CMD:
+
         vic_id = bit64_extract(src_cmd->cmd[2],0,12);  //To-do: See implication of size                                                                                                                     
         desc.its_invall_cmd.ic_id = vm->arch.vgits.vicid_to_icid_map[vic_id];
 
         its_build_invall(dest_cmd,&desc);
+
         break;
     case ITS_CLEAR_CMD:
     case ITS_DISCARD_CMD:
@@ -742,12 +695,6 @@ void its_translate_cmd(struct its_cmd *dest_cmd,
     default: //To-do: further evaluation - stop the hypervisor execution probably not the best solution
         ERROR("[BAO-VGICV3] Invalid ITS command received with id 0x%x\n",GITS_CMD_MASK(src_cmd));
     }
-    console_printk("xx Dest CMD is 0x%x\n",GITS_CMD_MASK(dest_cmd));
-    console_printk("cmd 0 is 0x%lx\n", dest_cmd->cmd[0]);
-    console_printk("cmd 1 is 0x%lx\n", dest_cmd->cmd[1]);
-    console_printk("cmd 2 is 0x%lx\n", dest_cmd->cmd[2]);
-    console_printk("cmd 3 is 0x%lx\n\n", dest_cmd->cmd[3]);
-    console_printk("xxxxxxxxxxxxxxxxxxxxxxx\n");
 }
 
 void its_translate_vcmd(struct its_cmd *dest_cmd,
@@ -815,9 +762,8 @@ void its_translate_vcmd(struct its_cmd *dest_cmd,
             its_build_mapd(dest_cmd,&desc);
             break;
         default:
-            //introduce a "NOP" command
-            //SYNC command
-            //console_printk("BAO-VGICV3: Other cmd received -> 0x%x\n",GITS_CMD_MASK(src_cmd));        
+            //TODO: introduce a "NOP" command
+       
     }
 }
 
@@ -845,30 +791,10 @@ void vgits_emul_cwriter_access(struct emul_access* acc, struct vgic_reg_handler_
         n_cmd = (prev_cwriter > curr_cwriter)? (((4096 * (ITS_CMD_QUEUE_N_PAGE + 1))- prev_cwriter) + curr_cwriter)/0x20 : (curr_cwriter - prev_cwriter)/0x20;
         num_cmd = n_cmd;
 
-        //its_test = (uint64_t*)cpu()->vcpu->vm->arch.vgits.vgits_cmdq.base_vaddr;
         vm_cmd = vm->arch.vgits.vgits_cmdq.base_vaddr + vm_cmd_off;
         its_cmd = its_cmd_queue + cmd_off;
 
-        //paddr_t cmd_queue_pa;
-        //mem_translate(&cpu()->as,(vaddr_t)vm->arch.vgits.vgits_cmdq.base_vaddr,&cmd_queue_pa);
-
         cache_flush_range((vaddr_t)vm->arch.vgits.vgits_cmdq.base_vaddr,0x10000);   //To-do: use vm size
-
-        // console_printk("xxxxxxxxxxxxxxxxxxxxxxxxxxxxx\n");
-        // console_printk("\twrite to cwriter register\t\n");
-        // console_printk("Value of cmd 0 is 0x%lx\n",*its_test++);
-        // console_printk("Value of cmd 1 is 0x%lx\n",*its_test++);
-        // console_printk("Value of cmd 2 is 0x%lx\n",*its_test++);
-        // console_printk("Value of cmd 3 is 0x%lx\n",*its_test++);
-        // console_printk("Value of cmd 4 is 0x%lx\n",*its_test++);
-        // console_printk("Value of cmd 5 is 0x%lx\n",*its_test++);
-        // console_printk("Value of cmd 6 is 0x%lx\n",*its_test++);
-        // console_printk("Value of cmd 7 is 0x%lx\n",*its_test);
-        // console_printk("Value phys of vcmdq is 0x%lx\n",cmd_queue_pa);
-        // console_printk("Number of vm_cmd is %d and cmd_off is 0x%lx\n",n_cmd,cmd_off);
-        // console_printk("Value of its phy cmd is 0x%lx and virt is 0x%lx\n",its_cmd,vm_cmd);
-        // console_printk("[BAO-VGICV3] CWRITER write from addr 0x%x with the offset 0x%lx\n",acc->addr,gits->CWRITER);
-        // console_printk("xxxxxxxxxxxxxxxxxxxxxxxxxxxxx\n");
         
         while(n_cmd-- > 0)
         {
@@ -886,7 +812,6 @@ void vgits_emul_cwriter_access(struct emul_access* acc, struct vgic_reg_handler_
         
         vm->arch.vgits.CWRITER = curr_cwriter;
         gits->CWRITER += (num_cmd * 0x20); 
-        console_printk("CWRITER updated to virtual value 0x%x and phy 0x%x by vm %d\n",curr_cwriter,gits->CWRITER, vm->id);
     }
 }
 
@@ -910,15 +835,6 @@ void vgits_emul_baser_access(struct emul_access* acc, struct vgic_reg_handler_in
         cpu()->vcpu->vm->arch.vgits.BASER[index] = (cpu()->vcpu->vm->arch.vgits.BASER[index] & GITS_BASER_RO_MASK) | (tmp & ~GITS_BASER_RO_MASK);
     }
 }
-
-/*void vgits_emul_translater_access(struct emul_access* acc, struct vgic_reg_handler_info* handlers,
-    bool gicr_access, vcpuid_t vgicr_id) 
-{
-    if(acc->write){
-        gits->TRANSLATER=vcpu_readreg(cpu()->vcpu, acc->reg);
-        console_printk("[BAO-VGICV3] TRANSLATER write from addr 0x%x\n",acc->addr);
-    }
-}*/
 
 void vgits_emul_iidr_access(struct emul_access* acc, struct vgic_reg_handler_info* handlers,
     bool gicr_access, vcpuid_t vgicr_id) 
@@ -1232,8 +1148,6 @@ struct vgic_int vgic_tmp_lpi(struct vcpu* vcpu, irqid_t id){
     interrupt.phys.redist = vcpu->phys_id;
     interrupt.hw = false;
     interrupt.enabled = vgic_get_en_lpi(vcpu->vm,id);
-
-    console_printk("En is %d, prio is 0x%x, redist 0x%x and id %d\n",interrupt.enabled,interrupt.prio, interrupt.phys.redist,id);
 
     return interrupt;
 }
